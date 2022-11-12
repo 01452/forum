@@ -11,7 +11,7 @@ import telran.java2022.accounting.model.UserAccount;
 
 @SpringBootApplication
 public class ForumServiceApplication implements CommandLineRunner {
-	
+
 	@Autowired
 	UserAccountRepository repository;
 
@@ -21,14 +21,14 @@ public class ForumServiceApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
-		if(!repository.existsById("admin")) {
+		if (!repository.existsById("admin")) {
 			String password = BCrypt.hashpw("admin", BCrypt.gensalt());
-			UserAccount userAccount = new UserAccount("admin", password , "", "");
+			UserAccount userAccount = new UserAccount("admin", password, "", "");
 			userAccount.addRole("MODERATOR");
 			userAccount.addRole("ADMINISTRATOR");
 			repository.save(userAccount);
 		}
-		
+
 	}
 
 }

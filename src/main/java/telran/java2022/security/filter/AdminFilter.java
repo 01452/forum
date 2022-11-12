@@ -41,7 +41,7 @@ public class AdminFilter implements Filter {
 	}
 
 	private boolean checkEndPoint(String method, String servletPath) {
-		return servletPath.matches("/account/user/\\w+/role/\\w+/?");
+		return servletPath.matches("/account/user/\\w+/role/\\w+/?") || servletPath.matches("/user/\\w+/?");
 	}
 
 }
