@@ -20,13 +20,15 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import telran.java2022.accounting.dao.UserAccountRepository;
 import telran.java2022.accounting.model.UserAccount;
+import telran.java2022.post.dao.PostRepository;
 
 @Component
 @RequiredArgsConstructor
 @Order(10)
 public class AuthenticationFilter implements Filter {
-	
+
 	final UserAccountRepository userAccountRepository;
+	final PostRepository postRepository;
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
@@ -35,7 +37,7 @@ public class AuthenticationFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse) resp;
 		if (checkEndPoint(request.getMethod(), request.getServletPath())) {
 			String token = request.getHeader("Authorization");
-			if(token == null) {
+			if (token == null) {
 				response.sendError(401);
 				return;
 			}
@@ -47,12 +49,12 @@ public class AuthenticationFilter implements Filter {
 				return;
 			}
 			UserAccount userAccount = userAccountRepository.findById(credentials[0]).orElse(null);
-			if(userAccount == null || !BCrypt.checkpw(credentials[1], userAccount.getPassword())) {
+			if (userAccount == null || !BCrypt.checkpw(credentials[1], userAccount.getPassword())) {
 				response.sendError(401, "login or password is invalid");
 				return;
 			}
 			request = new WrappedRequest(request, userAccount.getLogin());
-			
+
 		}
 		chain.doFilter(request, response);
 	}
@@ -65,22 +67,25 @@ public class AuthenticationFilter implements Filter {
 	}
 
 	private boolean checkEndPoint(String method, String servletPath) {
-		return !("POST".equalsIgnoreCase(method) && servletPath.matches("/account/register/?"));
+		return !("POST".equalsIgnoreCase(method) && servletPath.matches("/account/register/?"))
+				&& !("GET".equalsIgnoreCase(method) && servletPath.matches("/forum/posts/author/\\w/?"))
+				&& !("POST".equalsIgnoreCase(method) && servletPath.matches("/forum/posts/tags/?"))
+				&& !("POST".equalsIgnoreCase(method) && servletPath.matches("forum/posts/period/?"));
 	}
-	
+
 	private class WrappedRequest extends HttpServletRequestWrapper {
 		String login;
-		
+
 		public WrappedRequest(HttpServletRequest request, String login) {
 			super(request);
 			this.login = login;
 		}
-		
+
 		@Override
 		public Principal getUserPrincipal() {
 			return () -> login;
 		}
-		
+
 	}
 
 }

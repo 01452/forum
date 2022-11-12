@@ -21,7 +21,7 @@ import telran.java2022.accounting.model.UserAccount;
 @RequiredArgsConstructor
 @Order(20)
 public class AdminFilter implements Filter {
-	
+
 	final UserAccountRepository userAccountRepository;
 
 	@Override
@@ -30,9 +30,8 @@ public class AdminFilter implements Filter {
 		HttpServletRequest request = (HttpServletRequest) req;
 		HttpServletResponse response = (HttpServletResponse) resp;
 		if (checkEndPoint(request.getMethod(), request.getServletPath())) {
-			UserAccount userAccount = userAccountRepository
-					.findById(request.getUserPrincipal().getName()).get();
-			if(!userAccount.getRoles().contains("Administrator".toUpperCase())) {
+			UserAccount userAccount = userAccountRepository.findById(request.getUserPrincipal().getName()).get();
+			if (!userAccount.getRoles().contains("Administrator".toUpperCase())) {
 				response.sendError(403);
 				return;
 			}
@@ -41,7 +40,7 @@ public class AdminFilter implements Filter {
 	}
 
 	private boolean checkEndPoint(String method, String servletPath) {
-		return servletPath.matches("/account/user/\\w+/role/\\w+/?") || servletPath.matches("/user/\\w+/?");
+		return servletPath.matches("/account/user/\\w+/role/\\w+/?");
 	}
 
 }
