@@ -14,31 +14,32 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import telran.java2022.accounting.dao.UserAccountRepository;
-import telran.java2022.accounting.model.UserAccount;
 import telran.java2022.post.dao.PostRepository;
 import telran.java2022.post.model.Post;
+import telran.java2022.security.context.SecurityContext;
+import telran.java2022.security.context.User;
 
 @Component
 @RequiredArgsConstructor
 @Order(30)
 public class UserFilter implements Filter {
 
-	final UserAccountRepository userAccountRepository;
 	final PostRepository postRepository;
+	final SecurityContext context;
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
 			throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) req;
 		HttpServletResponse response = (HttpServletResponse) resp;
+
 		if (checkEndPoint(request.getMethod(), request.getServletPath())) {
-			UserAccount userAccount = userAccountRepository.findById(request.getUserPrincipal().getName()).get();
+			User userAccount = context.getUser(request.getUserPrincipal().getName());
 			if (("PUT".equalsIgnoreCase(request.getMethod()) || "DELETE".equalsIgnoreCase(request.getMethod()))
 					&& request.getServletPath().matches("/forum/post/\\w+/?")) {
 				String namePost = request.getServletPath().split("/")[3];
 				Post post = postRepository.findById(namePost).get();
-				if (!userAccount.getLogin().equals(postRepository.findById(post.getId()).get().getAuthor())
+				if (!userAccount.getUserName().equals(postRepository.findById(post.getId()).get().getAuthor())
 						&& !checkPostDeleteMethod(request.getMethod(), request.getServletPath(), userAccount)) {
 					response.sendError(403, "Error post");
 					return;
@@ -47,7 +48,7 @@ public class UserFilter implements Filter {
 			if (("PUT".equalsIgnoreCase(request.getMethod())
 					&& request.getServletPath().matches("/forum/post/\\w+/comment/\\w+/?"))) {
 				String name = request.getServletPath().split("/")[5];
-				if (!(userAccount.getLogin().equals(name))) {
+				if (!(userAccount.getUserName().equals(name))) {
 					response.sendError(403, "Error User");
 					return;
 				}
@@ -56,7 +57,7 @@ public class UserFilter implements Filter {
 					&& ("POST".equalsIgnoreCase(request.getMethod())
 							&& request.getServletPath().matches("/forum/post/\\w+"))) {
 				String name = request.getServletPath().split("/")[3];
-				if (!(userAccount.getLogin().equals(name))
+				if (!(userAccount.getUserName().equals(name))
 						&& !checkUserDeleteMethod(request.getMethod(), request.getServletPath(), userAccount)) {
 					response.sendError(403, "Error User");
 					return;
@@ -66,12 +67,12 @@ public class UserFilter implements Filter {
 		chain.doFilter(request, response);
 	}
 
-	private boolean checkPostDeleteMethod(String method, String servletPath, UserAccount userAccount) {
+	private boolean checkPostDeleteMethod(String method, String servletPath, User userAccount) {
 		return ("DELETE".equalsIgnoreCase(method) && servletPath.matches("/forum/post/\\w+/?"))
 				&& userAccount.getRoles().contains("Moderator".toUpperCase());
 	}
 
-	private boolean checkUserDeleteMethod(String method, String servletPath, UserAccount userAccount) {
+	private boolean checkUserDeleteMethod(String method, String servletPath, User userAccount) {
 		return ("DELETE".equalsIgnoreCase(method) && servletPath.matches("/account/user/\\w+/?"))
 				&& userAccount.getRoles().contains("Administrator".toUpperCase());
 	}

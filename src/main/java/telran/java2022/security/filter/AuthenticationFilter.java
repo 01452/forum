@@ -21,6 +21,9 @@ import lombok.RequiredArgsConstructor;
 import telran.java2022.accounting.dao.UserAccountRepository;
 import telran.java2022.accounting.model.UserAccount;
 import telran.java2022.post.dao.PostRepository;
+import telran.java2022.security.context.SecurityContext;
+import telran.java2022.security.context.User;
+import telran.java2022.security.service.SessionService;
 
 @Component
 @RequiredArgsConstructor
@@ -29,6 +32,8 @@ public class AuthenticationFilter implements Filter {
 
 	final UserAccountRepository userAccountRepository;
 	final PostRepository postRepository;
+	final SecurityContext context;
+	final SessionService sessionService;
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
@@ -36,25 +41,36 @@ public class AuthenticationFilter implements Filter {
 		HttpServletRequest request = (HttpServletRequest) req;
 		HttpServletResponse response = (HttpServletResponse) resp;
 		if (checkEndPoint(request.getMethod(), request.getServletPath())) {
+			String sessionId = request.getSession().getId();
+			UserAccount userAccount = sessionService.getUser(sessionId);
 			String token = request.getHeader("Authorization");
-			if (token == null) {
-				response.sendError(401);
-				return;
+			if (token != null) {
+				request.changeSessionId();
+				sessionId = request.getSession().getId();
+				userAccount = sessionService.getUser(sessionId);
+				if (userAccount != null) {
+					response.sendError(401);
+					return;
+				}
+				String[] credentials;
+				try {
+					credentials = getCredentialsFromToken(token);
+				} catch (Exception e) {
+					response.sendError(401, "Invalid token");
+					return;
+				}
+				userAccount = userAccountRepository.findById(credentials[0]).orElse(null);
+				if (userAccount == null || !BCrypt.checkpw(credentials[1], userAccount.getPassword())) {
+					response.sendError(401, "login or password is invalid");
+					return;
+				}
+				sessionService.addUser(sessionId, userAccount);
 			}
-			String[] credentials;
-			try {
-				credentials = getCredentialsFromToken(token);
-			} catch (Exception e) {
-				response.sendError(401, "Invalid token");
-				return;
-			}
-			UserAccount userAccount = userAccountRepository.findById(credentials[0]).orElse(null);
-			if (userAccount == null || !BCrypt.checkpw(credentials[1], userAccount.getPassword())) {
-				response.sendError(401, "login or password is invalid");
-				return;
-			}
-			request = new WrappedRequest(request, userAccount.getLogin());
 
+			request = new WrappedRequest(request, userAccount.getLogin());
+			User user = User.builder().userName(userAccount.getLogin()).password(userAccount.getPassword())
+					.roles(userAccount.getRoles()).build();
+			context.addUser(user);
 		}
 		chain.doFilter(request, response);
 	}
