@@ -66,11 +66,15 @@ public class AuthenticationFilter implements Filter {
 				}
 				sessionService.addUser(sessionId, userAccount);
 			}
-
-			request = new WrappedRequest(request, userAccount.getLogin());
-			User user = User.builder().userName(userAccount.getLogin()).password(userAccount.getPassword())
-					.roles(userAccount.getRoles()).build();
-			context.addUser(user);
+			try {
+				request = new WrappedRequest(request, userAccount.getLogin());
+				User user = User.builder().userName(userAccount.getLogin()).password(userAccount.getPassword())
+						.roles(userAccount.getRoles()).build();
+				context.addUser(user);
+			} catch (Exception e) {
+				response.sendError(401, "Authorization failed");
+				return;
+			}
 		}
 		chain.doFilter(request, response);
 	}
